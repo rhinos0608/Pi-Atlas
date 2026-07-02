@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { bootstrapInstallArgs, callSetupTool } from '../src/bootstrap.js';
+import { bootstrapInstallArgs, callSetupTool, installAllowed } from '../src/bootstrap.js';
 
 test('bootstrapInstallArgs supports documented install_all mode', () => {
   assert.deepEqual(bootstrapInstallArgs('install_all'), ['install', '--env=auto', '--channels=all']);
@@ -14,8 +14,14 @@ test('bootstrapInstallArgs treats safe mode as gated install command', () => {
   assert.deepEqual(bootstrapInstallArgs('safe'), ['install', '--env=auto', '--safe']);
 });
 
-test('reach_setup install remains blocked without explicit allow env', async () => {
-  const result = await callSetupTool({ action: 'install_all' }, { env: {} });
+test('installAllowed is opt-out', () => {
+  assert.equal(installAllowed({}), true);
+  assert.equal(installAllowed({ PI_SEARCH_ALLOW_INSTALL: '0' }), false);
+  assert.equal(installAllowed({ PI_SEARCH_ALLOW_INSTALL: 'false' }), false);
+});
 
-  assert.match(JSON.stringify(result.details), /PI_SEARCH_ALLOW_INSTALL=1/);
+test('reach_setup install blocks when explicitly opted out', async () => {
+  const result = await callSetupTool({ action: 'install_all' }, { env: { PI_SEARCH_ALLOW_INSTALL: '0' } });
+
+  assert.match(JSON.stringify(result.details), /blocked by PI_SEARCH_ALLOW_INSTALL=0/);
 });

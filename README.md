@@ -58,9 +58,9 @@ CLI output is always JSON:
 User-facing setup/status is exposed as Pi slash commands, not LLM tools:
 
 - `/reach-status [family]` — inspect channels/backends and active backend, e.g. `/reach-status social`
-- `/reach-setup [status|plan|install_core|install_all|install_channels channels]` — show setup plan or explicitly run gated setup
+- `/reach-setup [status|plan|install_core|install_all|install_channels channels|import_cookies]` — show setup plan, run setup, or import existing browser cookies
 
-Install actions require `PI_SEARCH_ALLOW_INSTALL=1`; logged-in platforms still require user browser login, cookie export, QR scan, or API key entry.
+Install actions are allowed by default for this local extension; set `PI_SEARCH_ALLOW_INSTALL=0` to opt out. Existing browser cookies are imported automatically after successful setup when available; set `PI_SEARCH_IMPORT_BROWSER_COOKIES=0` to opt out. New logins, OpenCLI Chrome extension install, QR scan, and API key entry may still require user action.
 
 ## Configuration
 
@@ -70,7 +70,7 @@ For this local setup, the extension automatically reads `/Users/rhinesharar/sear
 
 Agent-Reach-inspired family routing uses ordered backends per platform. Native zero-config channels run directly; login-backed platforms probe known CLIs and report `active_backend` through `/reach-status`. New family tools require the default `native-cli` backend; legacy `SEARCH_BACKEND=mcp` only supports the original search-mcp tools.
 
-On first extension startup, a check-only bootstrap runs once and records status in `~/.pi-extension-search/bootstrap.json`. It does not install packages, read cookies, open browsers, or log in. To opt into startup installation, set `PI_SEARCH_BOOTSTRAP=install_core` or `PI_SEARCH_BOOTSTRAP=install_all`; install actions require `PI_SEARCH_ALLOW_INSTALL=1`.
+On first extension startup, bootstrap defaults to `install_all` and records status in `~/.pi-extension-search/bootstrap.json`. Set `PI_SEARCH_BOOTSTRAP=off` to disable, or `PI_SEARCH_ALLOW_INSTALL=0` to block installs. After successful install, it runs `agent-reach configure --from-browser` against local browsers to reuse existing cookies when available.
 
 Optional MCP fallback environment variables:
 
@@ -80,8 +80,10 @@ Optional MCP fallback environment variables:
 - `SEARCH_MCP_CWD` — working directory for the spawned MCP server
 - `SEARCH_MCP_FORWARD_ENV_JSON` — JSON string array of extra environment variable names to forward to MCP fallback
 - `SEARCH_MCP_CONFIG_PATH` — optional config path; default `/Users/rhinesharar/search-mcp/config.json`
-- `PI_SEARCH_BOOTSTRAP` — first-start bootstrap mode: `check` default, `off`, `safe`, `install_core`, or `install_all`
-- `PI_SEARCH_ALLOW_INSTALL` — set to `1` to allow explicit `/reach-setup` install actions
+- `PI_SEARCH_BOOTSTRAP` — first-start bootstrap mode: `install_all` default, `check`, `off`, `safe`, or `install_core`
+- `PI_SEARCH_ALLOW_INSTALL` — set to `0`, `false`, `no`, or `off` to block install actions
+- `PI_SEARCH_IMPORT_BROWSER_COOKIES` — set to `0`, `false`, `no`, or `off` to skip browser cookie import
+- `PI_SEARCH_BROWSER_COOKIE_BROWSERS` — comma-separated browser import order, default `chrome,firefox,edge,brave,opera`
 
 The MCP fallback forwards only an allowlisted environment to avoid leaking parent process secrets. External family backends also receive a small allowlist only: PATH/HOME/temp locale/proxy vars plus known platform auth vars.
 

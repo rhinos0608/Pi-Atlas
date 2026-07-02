@@ -172,8 +172,8 @@ function registerExpansionCommands(pi: ExtensionAPI, env: Record<string, string 
   });
 
   pi.registerCommand('reach-setup', {
-    description: 'Show or run setup for external backends. Usage: /reach-setup [status|plan|install_core|install_all|install_channels channels]',
-    getArgumentCompletions: (prefix) => ['status', 'plan', 'install_core', 'install_all', 'install_channels']
+    description: 'Show or run setup for external backends. Usage: /reach-setup [status|plan|install_core|install_all|install_channels channels|import_cookies]',
+    getArgumentCompletions: (prefix) => ['status', 'plan', 'install_core', 'install_all', 'install_channels', 'import_cookies']
       .filter((action) => action.startsWith(prefix))
       .map((action) => ({ value: action, label: action })),
     handler: async (args, ctx) => {

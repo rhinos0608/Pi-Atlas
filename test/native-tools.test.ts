@@ -57,8 +57,14 @@ test('video external wrappers reject non-http URL schemes', async () => {
   );
 });
 
-test('reach_setup install actions are blocked by default', async () => {
-  const result = await callNativeTool('reach_setup', { action: 'install_core' });
+test('reach_setup install actions are blocked when opted out', async () => {
+  const result = await callNativeTool('reach_setup', { action: 'install_core' }, { env: { PI_SEARCH_ALLOW_INSTALL: '0' } });
 
-  assert.match(JSON.stringify(result.details), /Package installation is disabled/);
+  assert.match(JSON.stringify(result.details), /blocked by PI_SEARCH_ALLOW_INSTALL=0/);
+});
+
+test('reach_setup import cookies can be opted out', async () => {
+  const result = await callNativeTool('reach_setup', { action: 'import_cookies' }, { env: { PI_SEARCH_IMPORT_BROWSER_COOKIES: '0' } });
+
+  assert.match(JSON.stringify(result.details), /Browser cookie import disabled/);
 });

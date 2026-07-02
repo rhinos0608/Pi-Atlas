@@ -97,6 +97,8 @@ export function buildCliEnvironment(env: Record<string, string | undefined>): Re
     'SEARCH_BACKEND',
     'PI_SEARCH_BOOTSTRAP',
     'PI_SEARCH_ALLOW_INSTALL',
+    'PI_SEARCH_IMPORT_BROWSER_COOKIES',
+    'PI_SEARCH_BROWSER_COOKIE_BROWSERS',
     'HTTP_PROXY',
     'HTTPS_PROXY',
     'ALL_PROXY',

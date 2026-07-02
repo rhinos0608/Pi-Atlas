@@ -80,9 +80,16 @@ test('runCommand supports reach_setup plan', async () => {
   assert.match(JSON.stringify(result.data), /twitter/);
 });
 
-test('runCommand blocks setup install without explicit env allow', async () => {
-  const result = await runCommand(['call', 'reach_setup', '{"action":"install_all"}'], {});
+test('runCommand blocks setup install when opted out', async () => {
+  const result = await runCommand(['call', 'reach_setup', '{"action":"install_all"}'], { PI_SEARCH_ALLOW_INSTALL: '0' });
 
   assert.equal(result.ok, true);
-  assert.match(JSON.stringify(result.data), /PI_SEARCH_ALLOW_INSTALL=1/);
+  assert.match(JSON.stringify(result.data), /blocked by PI_SEARCH_ALLOW_INSTALL=0/);
+});
+
+test('runCommand supports browser cookie import opt-out', async () => {
+  const result = await runCommand(['call', 'reach_setup', '{"action":"import_cookies"}'], { PI_SEARCH_IMPORT_BROWSER_COOKIES: '0' });
+
+  assert.equal(result.ok, true);
+  assert.match(JSON.stringify(result.data), /Browser cookie import disabled/);
 });

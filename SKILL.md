@@ -28,7 +28,7 @@ Use this extension when current external evidence or repository context would im
 
 ## CLI backend
 
-The extension routes through its local CLI backend by default. New family tools (`social`, `video`, `feeds`) require this default native-cli backend. Status/setup are user slash commands (`/reach-status`, `/reach-setup`), not agent tools. It also reuses `/Users/rhinesharar/search-mcp/config.json` by mapping known keys into env vars; never print mapped secret values. Useful checks:
+The extension routes through its local CLI backend by default. New family tools (`social`, `video`, `feeds`) require this default native-cli backend. Status/setup are user slash commands (`/reach-status`, `/reach-setup`), not agent tools. Setup installs by default unless `PI_SEARCH_ALLOW_INSTALL=0`; existing browser cookies are imported unless `PI_SEARCH_IMPORT_BROWSER_COOKIES=0`. It also reuses `/Users/rhinesharar/search-mcp/config.json` by mapping known keys into env vars; never print mapped secret values. Useful checks:
 
 ```bash
 npm run cli -- status
