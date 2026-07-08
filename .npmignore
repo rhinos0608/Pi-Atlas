@@ -1,0 +1,10 @@
+# Local env, cache, and temp directories (excluded from npm pack)
+.env
+.env.*
+!.env.example
+.pi-smartread/
+.pi-smartread.tags.cache/
+**/.pi-smartread/
+**/.pi-smartread.tags.cache/
+.smart-edit-undo/
+**/.smart-edit-undo/
