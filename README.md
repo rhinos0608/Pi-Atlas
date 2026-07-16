@@ -104,7 +104,16 @@ Pi-Atlas has two layers of semantic capability:
 
 ### 1. Built-in semantic retrieval (`fetch` with query)
 
-When you call `fetch` with a `query` parameter, Pi-Atlas crawls pages, splits them into chunks, scores each chunk against your query, and returns the top-K most relevant passages. This works with no external services — it uses local text scoring.
+When you call `fetch` with a `query` parameter, Pi-Atlas performs **hybrid search**:
+
+1. **URL discovery** — queries all configured search backends (DuckDuckGo, Brave, Exa, Tavily, SearXNG, Ollama), RRF-fuses results, deduplicates URLs
+2. **Page fetching** — optionally uses Scrapling (Python stealth browser) for JS-rendered pages and anti-bot bypass, falls back to plain HTTP
+3. **Chunking** — sentence-boundary-aware text splitting with overlap
+4. **BM25 ranking** — Okapi BM25 lexical scoring (TF saturation, IDF weighting, length normalization)
+5. **Embedding ranking** — vector similarity via embedding sidecar (if configured)
+6. **RRF fusion** — merges BM25 and embedding rankings into final results
+
+Every layer degrades gracefully: no Python → plain HTTP fetch, no sidecar → BM25-only, no backends → DuckDuckGo fallback.
 
 ```
 fetch({ query: "How does React concurrent rendering work?", searchQuery: "React 18 concurrent rendering" })
@@ -117,21 +126,55 @@ fetch({ query: "How does React concurrent rendering work?", searchQuery: "React 
 
 Without a `query`, `fetch` returns the full readable text of a URL (plain extraction, no semantic processing).
 
-### 2. Embedding sidecar (GitHub `code_search`)
+### 2. Embedding sidecar (semantic search + GitHub `code_search`)
 
-For deep semantic code search within GitHub repositories, Pi-Atlas can connect to an embedding service. This powers the `github` tool's `code_search` action — AST-aware retrieval that uses tree-sitter for code parsing and embeddings for semantic ranking.
+Pi-Atlas can connect to an embedding service for **vector-based semantic search** in `fetch` and **AST-aware semantic code search** in GitHub `code_search`.
 
-Configure the sidecar:
+Configure the sidecar (works with any OpenAI-compatible embedding API — LM Studio, Ollama, OpenAI, etc.):
 
 ```bash
 export EMBEDDING_SIDECAR_PROVIDER="openai"          # Provider identifier
-export EMBEDDING_SIDECAR_BASE_URL="https://..."     # Embedding service endpoint
-export EMBEDDING_SIDECAR_API_TOKEN="..."            # Auth token
-export EMBEDDING_SIDECAR_DIMENSIONS="1536"          # Embedding vector dimensions
-export EMBEDDING_SIDECAR_CODE_MODEL="text-embedding-3-small"  # Model for code embeddings
+export EMBEDDING_SIDECAR_BASE_URL="http://localhost:1234"  # Embedding service endpoint
+export EMBEDDING_SIDECAR_API_TOKEN="sk-..."         # Auth token (optional for local services)
+export EMBEDDING_SIDECAR_DIMENSIONS="768"            # Embedding vector dimensions
 ```
 
-Once configured, use `code_search` to find code by meaning, not just keywords:
+When `EMBEDDING_SIDECAR_BASE_URL` is set, `fetch` with query automatically uses BM25 + embedding RRF fusion for ranking. No Python process is spawned — it talks directly to your external embedding service.
+
+#### Local Python sidecar (alternative)
+
+If you don't have an external embedding service, Pi-Atlas can spawn a local Python sidecar:
+
+```bash
+pip install fastapi uvicorn sentence-transformers
+export PI_SEARCH_EMBEDDING_ENABLED=1
+export PI_SEARCH_EMBEDDING_MODEL=all-MiniLM-L6-v2  # 384 dims, 22MB
+```
+
+Pi-Atlas auto-spawns the sidecar on first use and manages its lifecycle.
+
+#### Stealth browser mode (Scrapling)
+
+If the Scrapling Python package is installed, Pi-Atlas uses it **automatically** for `fetch` — no configuration needed. It provides:
+
+- JS-rendered page content (SPA, React, Angular sites)
+- Cloudflare Turnstile/Interstitial auto-solve
+- Anti-fingerprinting (canvas noise, WebRTC leak prevention, CDP detection bypass)
+- Stealth browser via Patchright
+
+```bash
+pip install "scrapling[fetchers]"
+scrapling install  # download browsers + system deps
+```
+
+Pi-Atlas auto-detects Scrapling on startup. If installed, `fetch` and `agentic_browse` use it automatically. If not installed, falls back to plain HTTP.
+
+Optional proxy:
+```bash
+export PI_SEARCH_SCRAPLING_PROXY="http://user:pass@host:port"
+```
+
+### 3. GitHub `code_search`
 
 ```
 github({ action: "code_search", repository: "owner/repo", query: "authentication middleware with JWT verification" })

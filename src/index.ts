@@ -250,8 +250,8 @@ function registerExpansionTools(pi: ExtensionAPI, client: SearchBackend, env: Re
     promptGuidelines: [
       'Uses agent-browser backend by default; set PI_SEARCH_BROWSER_BACKEND=cdp for explicit loopback CDP rollback.',
       'Respects PI_SEARCH_BROWSER_AUTOMATION=0 opt-out.',
-      'Navigation only to public http/https URLs (private/local hosts blocked).',
-      'evaluate and set_cookies are disabled by default by policy; security enforcement is external through containerization and other extensions. cookies returns metadata only.',
+      'Navigates to any http/https URL — containerization handles network containment and security; no hostname blacklist or DNS preflight. evaluate and set_cookies are gated by policy classification.',
+      'cookies returns metadata only (values never exposed).',
     ],
     parameters: Type.Object({
       action: Type.Optional(Type.String({ description: 'Action: status, tabs, navigate, evaluate, text, html, screenshot, click, type, scroll, close, cookies, set_cookies, snapshot, fill, wait, get_url, get_title.' })),
@@ -264,7 +264,7 @@ function registerExpansionTools(pi: ExtensionAPI, client: SearchBackend, env: Re
       y: Type.Optional(Type.Number({ description: 'Vertical scroll offset.' })),
       urls: Type.Optional(Type.Array(Type.String(), { description: 'URLs for cookies action.' })),
       cookies: Type.Optional(Type.Array(Type.Any(), { description: 'Cookie metadata/payload for set_cookies; values never returned.' })),
-      allowedDomains: Type.Optional(Type.Array(Type.String(), { description: 'Explicit public hostnames or *.subdomain patterns for owned session containment.' })),
+      allowedDomains: Type.Optional(Type.Array(Type.String(), { description: 'Explicit public hostnames or *.subdomain patterns for session metadata. Note: does not restrict navigation — containerization handles containment.' })),
       waitMs: Type.Optional(Type.Number({ minimum: 0, maximum: 120000, description: 'Wait duration in milliseconds.' })),
     }),
     async execute(_toolCallId, params, signal): Promise<AgentToolResult<unknown>> {
