@@ -8,6 +8,8 @@ src/**/*.js.map
 test/**/*.js
 test/**/*.js.map
 !*.config.js
+__pycache__/
+*.pyc
 .DS_Store
 **/.DS_Store
 .pi-smartread/
