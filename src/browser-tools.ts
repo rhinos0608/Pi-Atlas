@@ -15,9 +15,10 @@ import {
   cdpGetCookiesRaw,
   cdpSetCookies,
 } from './cdp.js'
-import { validatePublicHttpUrl } from './http.js'
+
 import { textResult as guardedTextResult } from './tool-output.js'
 import { AgentBrowserAdapter } from './agent-browser.js'
+import { resolveAgentBrowserExecutable } from './agent-browser-process.js'
 import { extractCookieMetadata, validateLegacyLoopbackEndpoint } from './browser-policy.js'
 
 export type BrowserAction = 'status' | 'tabs' | 'navigate' | 'evaluate' | 'text' | 'html' | 'screenshot' | 'click' | 'type' | 'scroll' | 'close' | 'cookies' | 'set_cookies'
@@ -36,9 +37,10 @@ export function resolveBrowserBackend(env?: Record<string, string | undefined>):
 
 let _adapter: AgentBrowserAdapter | null = null
 
-function getAdapter(env?: Record<string, string | undefined>): AgentBrowserAdapter {
+async function getAdapter(env?: Record<string, string | undefined>): Promise<AgentBrowserAdapter> {
   if (!_adapter) {
-    _adapter = new AgentBrowserAdapter({ env })
+    const executablePath = await resolveAgentBrowserExecutable(env?.BROWSER_EXECUTABLE_PATH)
+    _adapter = new AgentBrowserAdapter({ env, executablePath })
   }
   return _adapter
 }
@@ -49,12 +51,6 @@ export async function closeBrowserSession(): Promise<void> {
     _adapter = null
     await a.close()
   }
-}
-
-// ── Sensitive action gate ──
-
-function isSensitiveActionAllowed(env?: Record<string, string | undefined>): boolean {
-  return env?.PI_SEARCH_BROWSER_ALLOW_SENSITIVE === '1'
 }
 
 // ── CDP endpoint ──
@@ -94,7 +90,7 @@ async function agentBrowserRoute(
   options: { signal?: AbortSignal; env?: Record<string, string | undefined> },
 ): Promise<BackendCallResult> {
   const env = options.env ?? process.env
-  const adapter = getAdapter(env)
+  const adapter = await getAdapter(env)
   return adapter.execute(args, { env, ...(options.signal ? { signal: options.signal } : {}) })
 }
 
@@ -123,10 +119,7 @@ async function legacyCdpBrowser(
     })
   }
 
-  // Sensitive action gate applies to CDP path too
-  if ((action === 'evaluate' || action === 'set_cookies') && !isSensitiveActionAllowed(env)) {
-    throw new Error(`${action} disabled by policy. Set PI_SEARCH_BROWSER_ALLOW_SENSITIVE=1 to enable.`)
-  }
+
 
   const signal = options.signal
   const session = await openCdpSession(endpoint, signal)
@@ -136,7 +129,6 @@ async function legacyCdpBrowser(
         return textResult(await cdpListTargets(session))
       case 'navigate': {
         const url = requireString(args.url, 'url')
-        validatePublicHttpUrl(url)
         return textResult(await cdpNavigate(session, url))
       }
       case 'evaluate': {

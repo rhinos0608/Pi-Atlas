@@ -120,7 +120,17 @@ export function buildSandboxEnvironment(
 /**
  * Resolve the path to the agent-browser executable.
  */
-export function resolveAgentBrowserExecutable(explicitPath?: string): string {
+function findOnPath(executable: string): string | undefined {
+  const pathEnv = (process.env.PATH ?? '');
+  const paths = pathEnv.split(':');
+  for (const dir of paths) {
+    const candidate = join(dir, executable);
+    if (existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+export async function resolveAgentBrowserExecutable(explicitPath?: string): Promise<string> {
   if (explicitPath) {
     if (!existsSync(explicitPath)) {
       throw new Error(`agent-browser executable not found at explicit path: ${explicitPath}`);
@@ -129,10 +139,34 @@ export function resolveAgentBrowserExecutable(explicitPath?: string): string {
   }
 
   const localBin = join(process.cwd(), 'node_modules', '.bin', 'agent-browser');
-  if (existsSync(localBin)) return localBin;
+  if (existsSync(localBin)) {
+    try {
+      await verifyVersion(localBin);
+      return localBin;
+    } catch {
+      // version incompatible, continue resolution
+    }
+  }
 
   const pkgBin = join(process.cwd(), 'node_modules', 'agent-browser', 'bin', 'agent-browser.js');
-  if (existsSync(pkgBin)) return pkgBin;
+  if (existsSync(pkgBin)) {
+    try {
+      await verifyVersion(pkgBin);
+      return pkgBin;
+    } catch {
+      // version incompatible, continue resolution
+    }
+  }
+
+  const pathBin = findOnPath('agent-browser');
+  if (pathBin) {
+    try {
+      await verifyVersion(pathBin);
+      return pathBin;
+    } catch {
+      // version incompatible, continue resolution
+    }
+  }
 
   throw new Error('agent-browser executable not found. Install agent-browser@0.32.0.');
 }
@@ -301,7 +335,7 @@ export async function runCommand(
   args: string[],
   options: AgentBrowserProcessOptions = {},
 ): Promise<AgentBrowserResult> {
-  const executablePath = resolveAgentBrowserExecutable(options.executablePath);
+  const executablePath = await resolveAgentBrowserExecutable(options.executablePath);
   if (!options.runtimeRoot || !options.namespace) {
     throw new Error('Session required: provide runtimeRoot and namespace in options');
   }
@@ -398,7 +432,7 @@ export async function runBatchStdin(
   commands: Array<{ args: string[]; sensitive?: boolean }>,
   options: AgentBrowserProcessOptions = {},
 ): Promise<AgentBrowserResult[]> {
-  const executablePath = resolveAgentBrowserExecutable(options.executablePath);
+  const executablePath = await resolveAgentBrowserExecutable(options.executablePath);
   if (!options.runtimeRoot || !options.namespace) {
     throw new Error('Session required: provide runtimeRoot and namespace in options');
   }
@@ -488,7 +522,7 @@ export async function runBatchStdin(
 export async function runScreenshot(
   options: AgentBrowserProcessOptions = {},
 ): Promise<{ data: string; mediaType: string; width: number; height: number; byteLength: number } | { error: string }> {
-  const executablePath = resolveAgentBrowserExecutable(options.executablePath);
+  const executablePath = await resolveAgentBrowserExecutable(options.executablePath);
   if (!options.runtimeRoot || !options.namespace) {
     return { error: 'Session required for screenshot' };
   }
@@ -595,7 +629,7 @@ export async function runScreenshot(
  */
 export async function closeSession(session: AgentBrowserSession, options: AgentBrowserProcessOptions = {}): Promise<void> {
   try {
-    const executablePath = resolveAgentBrowserExecutable(options.executablePath);
+    const executablePath = await resolveAgentBrowserExecutable(options.executablePath);
     const env = buildSandboxEnvironment(options.env ?? process.env, session);
 
     await new Promise<void>((resolveSettle) => {

@@ -14,6 +14,7 @@ import {
   checkDomainAllowed,
   extractCookieMetadata,
   validateAllowedDomainsDns,
+  isSensitiveAction,
 } from './browser-policy.js';
 import {
   runCommand,
@@ -24,7 +25,6 @@ import {
   cleanupRuntimeRoot,
   generateNamespace,
   verifyVersion,
-  resolveAgentBrowserExecutable,
   type AgentBrowserSession,
   type AgentBrowserProcessOptions,
 } from './agent-browser-process.js';
@@ -68,7 +68,7 @@ export class AgentBrowserAdapter {
   private _sessionStarted = false;
 
   constructor(options: AgentBrowserAdapterOptions = {}) {
-    this.executablePath = resolveAgentBrowserExecutable(options.executablePath);
+    this.executablePath = options.executablePath ?? '';
     this.session = {
       runtimeRoot: options.runtimeRoot ?? '',
       namespace: '',
@@ -258,7 +258,7 @@ export class AgentBrowserAdapter {
   }
 
   private async handleEvaluate(request: BrowserRequest, options: AgentBrowserProcessOptions): Promise<BackendCallResult> {
-    if (options.env?.PI_SEARCH_BROWSER_ALLOW_SENSITIVE !== '1') {
+    if (isSensitiveAction('evaluate') && options.env?.PI_SEARCH_BROWSER_ALLOW_SENSITIVE !== '1') {
       return jsonTextResult({ error: 'evaluate disabled by policy. Set PI_SEARCH_BROWSER_ALLOW_SENSITIVE=1 to enable.' });
     }
     const expression = request.expression ? validateExpression(request.expression) : '';
@@ -409,14 +409,13 @@ export class AgentBrowserAdapter {
   }
 
   private async handleSetCookies(request: BrowserRequest, options: AgentBrowserProcessOptions): Promise<BackendCallResult> {
+    if (isSensitiveAction('set_cookies') && options.env?.PI_SEARCH_BROWSER_ALLOW_SENSITIVE !== '1') {
+      return jsonTextResult({ error: 'set_cookies disabled by policy. Set PI_SEARCH_BROWSER_ALLOW_SENSITIVE=1 to enable.' });
+    }
     if (!Array.isArray(request.cookies)) {
       return jsonTextResult({ error: 'cookies is required and must be an array' });
     }
     validateCookiesArray(request.cookies);
-
-    if (options.env?.PI_SEARCH_BROWSER_ALLOW_SENSITIVE !== '1') {
-      return jsonTextResult({ error: 'set_cookies disabled by policy. Set PI_SEARCH_BROWSER_ALLOW_SENSITIVE=1 to enable.' });
-    }
 
     await this.ensureSession(options);
     const merged = this.mergeOptions(options);
